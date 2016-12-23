@@ -35,11 +35,18 @@ max_connections = 512
 max_connect_errors = 100
 
 # table cache performance settings
+# 所有线程能够打开的表的数量，缺省值是2000
 table_open_cache = 4096
+# 存储表定义的缓存
 table_definition_cache = 4096
-table_open_cache_instances = 128
+# 表缓存的实例数，在16核CPU上，建议开到 8 到 16，但是看建议的这个
+# 数字，应该是DBA有实际的经验在里面，但是一个2核2G的肯定不能开这么高
+# 我调到 16，缺省值
+table_open_cache_instances = 16
 
 # session memory settings #
+# 每个线程做序列化扫描时，MyISAM 表能使用的缓存大小
+# 缺省值是 128K
 read_buffer_size = 16M
 read_rnd_buffer_size = 32M
 sort_buffer_size = 32M
@@ -48,9 +55,9 @@ join_buffer_size = 128M
 thread_cache_size = 64
 
 # log settings #
-log_error = error.log
+log_error = /var/log/mysqld.log
 slow_query_log = 1
-slow_query_log_file = slow.log
+slow_query_log_file = /var/log/mysqld-slow.log
 log_queries_not_using_indexes = 1
 log_slow_admin_statements = 1
 log_slow_slave_statements = 1
@@ -64,12 +71,19 @@ expire-logs-days = 90
 log-slave-updates = 1
 
 # innodb settings #
+# 数据库表空间中的页尺寸，文档缺省值就是16K
 innodb_page_size = 16384
-innodb_buffer_pool_size = 160G
-innodb_buffer_pool_instances = 16
+# InnoDB 缓冲表和索引的缓冲池大小，缺省128M，这个值调大，可以减少磁盘IO
+# 如果这个值大于1G，则_pool_instance 应该大于1，甚至可以设置到机器80%的物理
+# 内存，但是过大的话，物理内存竞争页会导致换页的损失
+# 我在这里设置1G，相当于机器50%的内存，相应的pool_instance 设置为1
+innodb_buffer_pool_size = 1G
+innodb_buffer_pool_instances = 1
+# 缓冲预热是否开启
 innodb_buffer_pool_load_at_startup = 1
 innodb_buffer_pool_dump_at_shutdown = 1
-innodb_lru_scan_depth = 4096
+# 每台看懂的一个东西，缺省1024，我先调回去
+innodb_lru_scan_depth = 1024
 innodb_lock_wait_timeout = 5
 innodb_io_capacity = 10000
 innodb_io_capacity_max = 20000
@@ -77,19 +91,25 @@ innodb_flush_method = O_DIRECT
 innodb_file_format = Barracuda
 innodb_file_format_max = Barracuda
 innodb_undo_logs = 128
-innodb_undo_tablespaces = 3
+# 也是每台看懂有什么用，缺省值是0，我先调0了
+innodb_undo_tablespaces = 0
 innodb_flush_neighbors = 0
-innodb_log_file_size = 17179869184
-innodb_log_files_in_group = 2
+# 调回缺省值 50M 左右，文件调为1个
+innodb_log_file_size = 50331648
+innodb_log_files_in_group = 1
+# 写log使用的缓冲区，如果足够大，执行事务的时候，不需要磁盘io
+# 这里设置了16M
 innodb_log_buffer_size = 16777216
 innodb_purge_threads = 4
 innodb_large_prefix = 1
 innodb_thread_concurrency = 64
 innodb_print_all_deadlocks = 1
 innodb_strict_mode = 1
+# 创建索引时候排序数据用的缓冲区大小，缺省 1M，这里大概是64M
 innodb_sort_buffer_size = 67108864
-innodb_write_io_threads = 16
-innodb_read_io_threads = 16 
+# 缺省是4，32个CPU，建议值才16，我只有2核，调回缺省
+innodb_write_io_threads = 4
+innodb_read_io_threads = 4 
 innodb_file_per_table = 1
 innodb_stats_persistent_sample_pages = 64
 innodb_autoinc_lock_mode = 2
@@ -120,9 +140,9 @@ rpl_semi_sync_slave_enabled = 1
 validate_password_policy=STRONG
 validate-password=FORCE_PLUS_PERMANENT
 
-[mysqld-5.6]
+# [mysqld-5.6]
 # metalock performance settings
-metadata_locks_hash_instances=64
+# metadata_locks_hash_instances=64
 
 [mysqld-5.7]
 # new innodb settings #
@@ -133,10 +153,10 @@ innodb_undo_log_truncate = 1
 innodb_max_undo_log_size = 2G
 innodb_purge_rseg_truncate_frequency = 128
 # new replication settings #
-slave-parallel-type = LOGICAL_CLOCK
-slave-parallel-workers = 16
-slave_preserve_commit_order=1
-slave_transaction_retries=128
+# slave-parallel-type = LOGICAL_CLOCK
+# slave-parallel-workers = 16
+# slave_preserve_commit_order=1
+# slave_transaction_retries=128
 # other change settings #
 binlog_gtid_simple_recovery=1
 log_timestamps=system
